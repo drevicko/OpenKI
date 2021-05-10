@@ -1,0 +1,16 @@
+--data-folder
+/media/ian/Data2/OpenKI-relation-data/data_reverb
+--train
+--epochs
+150
+--batch-size
+128
+--embed-dim
+100
+--embed-dim-pairs
+100
+--eval-batch-size
+40
+--optimizer
+RAdam
+--train-with-dev-preds

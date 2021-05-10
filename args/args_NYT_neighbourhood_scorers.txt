@@ -1,0 +1,11 @@
+--data-folder
+/media/ian/Data2/riedel/data-nyt-2010/openki_data_NA
+--data-source
+nyt
+--train
+--entity-nbhood-scoring
+--batch-size
+128
+--epochs
+100
+--train-with-dev-preds

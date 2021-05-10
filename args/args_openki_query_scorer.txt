@@ -1,0 +1,8 @@
+--data-folder
+/media/ian/Data2/OpenKI-relation-data/data_reverb
+--train
+--entity-pair-query-scoring
+--entity-nbhood-scoring
+--epochs
+100
+--train-with-dev-preds
