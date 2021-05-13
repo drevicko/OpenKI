@@ -1,9 +1,0 @@
---data-folder
-/media/ian/Data2/OpenKI-relation-data/data_reverb
---train
---e-model-scoring
---epochs
-100
---batch-size
-1024
---train-with-dev-preds

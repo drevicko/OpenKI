@@ -30,8 +30,6 @@ from OpenKI.Evaluation import OpenKIMapEvaluatorRankingPairs, OpenKIMapEvaluator
 from OpenKI.TextEncoders import FastTextRelationEmbedding, FastTextEntityEmbedding, \
     BertEntityTextEmbedding, BertRelationTextEmbedding, FastTextRelationPairEmbedding, BertRelationPairTextEmbedding, \
     RandomEntityTextEmbedding, RandomRelationTextEmbedding
-from OpenKI.TACRED_Data import OpenKITACREDEvalPerRelationDataReader, OpenKITACREDTrainDataReader, \
-    OpenKITACREDTrainDataReaderNegPairs, OpenKiTACREDEvalPerPairDataReader
 from OpenKI.NYT_2010_Data import OpenKINYTTrainDataReaderNegPairs, \
     OpenKiNYTEvalPerPairDataReader, OpenKINYTEvalPerRelationDataReader, OpenKINYTTrainDataReader
 from OpenKI.Reverb_Data import OpenKIReverbTrainDataReader, OpenKIReverbTrainDataReaderNegPairs, \
@@ -40,19 +38,15 @@ from OpenKI.RelationScorers import attention_aggregator, max_pool_weighted_aggre
 
 TRAIN_DATA_HANDLERS = {  # [ by_pair_ranking F, T ]
     "reverb": [OpenKIReverbTrainDataReader, OpenKIReverbTrainDataReaderNegPairs],
-    "nyt": [OpenKINYTTrainDataReader, OpenKINYTTrainDataReaderNegPairs],
-    "tacred": [OpenKITACREDTrainDataReader, OpenKITACREDTrainDataReaderNegPairs]
+    "nyt": [OpenKINYTTrainDataReader, OpenKINYTTrainDataReaderNegPairs]
 }
 EVAL_DATA_HANDLERS = {  # [ by_pair_ranking F, T ]
     "reverb": [OpenKIReverbEvalPerRelationDataReader, OpenKiReverbEvalPerPairDataReader],
-    "nyt": [OpenKINYTEvalPerRelationDataReader, OpenKiNYTEvalPerPairDataReader],
-    "tacred": [OpenKITACREDEvalPerRelationDataReader, OpenKiTACREDEvalPerPairDataReader]
+    "nyt": [OpenKINYTEvalPerRelationDataReader, OpenKiNYTEvalPerPairDataReader]
 }
 ENTITY_WORD_DELIMITERS = {
     "reverb": " ",
-    "nyt": " ",
-    "nyt_ccg": " ",
-    "tacred": " "
+    "nyt": " "
 }
 DATA_SOURCES = list(TRAIN_DATA_HANDLERS.keys())
 

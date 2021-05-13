@@ -1259,6 +1259,8 @@ if __name__ == '__main__':
         group.add_argument("--force-default-args", nargs='*', default=[],
                            help="When loading a model, options listed here will be reset to default values. 'train', "
                                 "'test', 'validate', and 'print_args_only' are always forced.")
+        # group.add_argument("--score-text-from-file", type=str, default=None,
+        #                    help="Use loaded model to score a triple")
         group.add_argument("--print-args-only", action="store_true", help="Print resolved program arguments and exit.")
         group.add_argument("--dont-log-exceptions", action="store_true", 
                            help="don't send uncaught exceptions  to the logger")

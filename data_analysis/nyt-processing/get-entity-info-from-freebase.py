@@ -53,7 +53,7 @@ freebase_file = "freebase-rdf-latest.gz"  # format: ent1_uri \t rel_uri \t ent2_
 # freebase_to_wikidata_file = "fb2w.nt.gz"  # format: fbent_uri \t w3/SameAs \t wd_ent_uri
 
 if args.dataset == REVERB:
-    data_dir = Path("/media/ian/Data2/OpenKI-relation-data/data_reverb")
+    data_dir = Path("data/reverb")
 
     # Read in the entity freebase ids
     reverb_entities_file = "e2name.json"
