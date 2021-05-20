@@ -14,18 +14,19 @@
 #  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #
+import re
 from argparse import Namespace
 from collections import OrderedDict, Sequence
 from copy import deepcopy
-
 import subprocess
-from ctypes import Union
-from typing import Optional
+from itertools import zip_longest
+import torch
 
 from OpenKI import logger
-from itertools import zip_longest
 
-import torch
+
+def freebase_id_from_uri(fb_uri:str):
+    return re.sub('<http://rdf.freebase.com/ns/(.*)>$', r'\1', fb_uri)
 
 
 def update_args(args, new_args, action_groups, exclude=("Model arguments",), silent=("",), force=(),

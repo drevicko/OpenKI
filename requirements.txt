@@ -1,0 +1,6 @@
+tqdm
+pytorch == 1.4
+numpy
+scikit-learn
+adabelief_pytorch
+transformers ~= 3.0

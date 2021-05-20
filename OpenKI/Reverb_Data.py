@@ -25,14 +25,14 @@ import torch
 from OpenKI import logger
 from OpenKI.OpenKI_Data import OpenKiGraphDataHandler, OpenKiEvalPerRelationDataHandler, \
     OpenKiEvalPerPairDataHandler, OpenKITrainDataReaderNegPairs, OpenKITrainDataReader
+from OpenKI.UtilityFunctions import freebase_id_from_uri
 
 
 class OpenKiReverbDataReader(OpenKiGraphDataHandler):
     num_dummy_relations = 2  # the first 2 relations are <MASK_R> and <PLACEHOLDER_R>
 
     def __init__(self, reverb_folder, data_split, device, eval_top_n_rels=None, use_dev_preds=False, variants=[],
-                 enatilments_to=None, untyped_entailments=False,
-                 use_freebase_names=False, *args, **kwargs):
+                 enatilments_to=None, untyped_entailments=False, *args, **kwargs):
         """
         Base class for data readers for OpenKI reverb data provided with paper.
         :param reverb_folder: Folder containing reverb data from openKI paper
@@ -47,21 +47,21 @@ class OpenKiReverbDataReader(OpenKiGraphDataHandler):
         self.data_folder = data_split
         self.device = device
         assert data_split in ("dev", "test", "train")
+
         with open(folder / "e2name.json") as f:
             self.e2name = json.load(f)
-        # self.text_variant = "_fb" if use_freebase_names else "_wd"
-        if use_freebase_names:  # NOTE: cached embeddings don't respect use_freebase_names!!
-            with open(folder / "e2info_fb.json") as f:
-                e2info = json.load(f)
-            name_info_fields = ["name", "name_label", "name_wiki_t", "name_wiki", "name_wiki_", "alias"]
-            desc_info_fields = ["desc"]
-        else:
-            with open(folder / "e2info_wd.json") as f:
-                e2info = json.load(f)
-            name_info_fields = ["name", "wikipedia"]
-            desc_info_fields = ["desc"]
+        self.entity_labels = {freebase_id_from_uri(e_uri): int(e_id) for e_id, e_uri in self.e2name.items()}
+
+        with open(folder / "e2info_fb.json") as f:
+            e2info = json.load(f)
+        name_info_fields = ["name", "name_label", "name_wiki_t", "name_wiki", "name_wiki_", "alias"]
+        desc_info_fields = ["desc"]
+
         with open(folder / "p2name.json") as f:
             self.p2name = json.load(f)
+        self.relation_labels = {freebase_id_from_uri(r_uri): int(r_id) for r_id, r_uri in self.e2name.items()}
+        list(map(freebase_id_from_uri, self.p2name.values()))
+
         with open(folder / f"{data_split}_data.json") as f:
             self.data = json.load(f)
 
@@ -125,7 +125,8 @@ class OpenKiReverbDataReader(OpenKiGraphDataHandler):
         # A few persistent tensors to avoid allocating them each time
         self.relations_mask = torch.zeros((self.num_relations,), dtype=torch.bool, device=self.device,
                                           requires_grad=False)
-        self.empty_index_tensor = torch.tensor([[]], dtype=torch.long, device=self.device, requires_grad=False)
+        self.empty_index_tensor = torch.tensor([], dtype=torch.long, device=self.device,
+                                               requires_grad=False).unsqueeze(-1)
 
         # setup relation and predicate texts
         # "251": "<http://rdf.freebase.com/ns/base.biblioness.bibs_location.state>",

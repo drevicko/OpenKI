@@ -17,6 +17,7 @@
 
 import argparse
 import ast
+import csv
 import json
 import logging
 import math
@@ -226,6 +227,12 @@ def main_loop(args, action_groups):
             args.with_entailments_to = None
         if getattr(args, "untyped_entailments", None) is None:
             args.untyped_entailments = False
+        if getattr(args, "score_triples", None) is None:
+            args.score_triples = None
+        if getattr(args, "score_triples_entity_by_index", None) is None:
+            args.score_triples_entity_by_index = None
+        if getattr(args, "score_triples_relation_by_index", None) is None:
+            args.score_triples_relation_by_index = None
 
         output_folder = Path(args.output_folder)
         torch_device = torch.device(args.device)
@@ -246,6 +253,8 @@ def main_loop(args, action_groups):
         args.degenerate_epochs = []
         args.first_degenerate_epoch = None
         last_tensorboard_args = argparse.Namespace()  # empty for first run so all args get dumped to tensorboard
+        if args.data_folder is None:
+            args.data_folder = f"data/{args.data_source}"
 
     if args.detect_anomaly:
         args.check_nans = True
@@ -283,7 +292,7 @@ def main_loop(args, action_groups):
         args.with_entailments_to = float(entailment_re_match.groups()[1])
         args.untyped_entailments = entailment_re_match.groups()[2] is not None
         logger.info(f"Using {'NC' if args.news_crawl_entailments else 'NS'}"
-                     f"{' untyped' if args.untyped_entailments else ''} entailments to {args.with_entailments_to}")
+                    f"{' untyped' if args.untyped_entailments else ''} entailments to {args.with_entailments_to}")
 
     max_dev_epoch = max(getattr(args, "max_AUC_epoch", 0), getattr(args, "max_MAP_epoch", 0))
     epochs_since_best = args.epoch - max_dev_epoch
@@ -301,8 +310,13 @@ def main_loop(args, action_groups):
 
     # check if we've something to do and abort if we don't
     if not (args.train or args.test or args.validate):
-        logger.warning("neither --train, --validate nor --test are set, nothing will happen, aborting!")
-        return
+        if args.score_triples:
+            if args.load_model is None:
+                logger.warning("cannot score triples without loading or training a model!")
+                return
+        else:
+            logger.warning("neither --train, --validate nor --test are set, nothing will happen, aborting!")
+            return
     elif not (args.test or args.validate):
         if not check_we_can_train():
             # To avoid wasting resources setting up data readers etc... when there is nothing to do, abort now
@@ -469,7 +483,7 @@ def main_loop(args, action_groups):
                 #     return IGNORE_OPENKI_EMBEDS
                 if aggregator_spec.startswith("concat-then-FC"):  # eg: "concat-then-FC-relu"
                     assert text_encoders[encoder_key_] is not None, "cannot use concat aggregator " \
-                                                                                      "without word embeddings!"
+                                                                    "without word embeddings!"
                     if args.no_activation_on_fc:
                         agg_activation = None
                     else:
@@ -509,7 +523,7 @@ def main_loop(args, action_groups):
                                                           f"are required!."
             relation_embeddings = None
         else:
-            relation_embeddings = nn.Embedding(num_embeds, embed_dim, padding_idx=0)
+            relation_embeddings = nn.Embedding(num_embeds, embed_dim, padding_idx=0).to(torch_device)
 
         if relation_embed_aggregator is not None or force_relation_encoder:
             # TODO: do we want to enable dropout for the RelationEncoder?
@@ -995,8 +1009,8 @@ def main_loop(args, action_groups):
                         # elif ...
                         if args.batch_size_final is not None:
                             batch_size = math.floor(args.batch_size + (args.batch_size_final - args.batch_size) \
-                                         * (min(epoch, args.schedule_to_epoch) - 1) \
-                                         / (args.schedule_to_epoch - 1))  # these zeros are the initial scheduling epoch
+                                                    * (min(epoch, args.schedule_to_epoch) - 1) \
+                                                    / (args.schedule_to_epoch - 1))  # these zeros are the initial scheduling epoch
                             logger.info(f"Batch size set to {batch_size} with constant lr {args.lr}")
 
                         logger.info("about to run batches...")
@@ -1223,6 +1237,44 @@ def main_loop(args, action_groups):
     if args.map_on_train:
         evaluate_on("train", "Train")
 
+    if args.score_triples:
+        logger.info(f"Scoring triples from {args.score_triples}")
+        with open(args.score_triples) as f_triples:
+            query_triples = list(csv.reader(f_triples))  # these are strings at this point
+        query_relations, query_entities = map(list, zip(*((r, [s, o]) for s, r, o in query_triples)))
+        if args.score_triples_entity_by_index:
+            logger.info("Entities in triples file treated as indices in entities.json or e2name.json")
+            query_entities = [list(map(int, ent_pair)) for ent_pair in query_entities]
+        else:
+            query_entities = [
+                [train_data.entity_labels.get(s, -1), train_data.entity_labels.get(o, -1)]
+                for s, o in query_entities
+            ]
+        if args.score_triples_relation_by_index:
+            logger.info("Relations in triples file treated as indices in relations.csv or ps2name.json")
+            query_relations = list(map(int, query_relations))
+        else:
+            query_relations = [
+                train_data.relation_labels.get(r, -1)
+                for r in query_relations
+            ]
+        query_triples = [e_pair + [r] for e_pair, r in zip(query_entities, query_relations)]
+        query_triples = torch.tensor(query_triples, device=torch_device, dtype=torch.long)
+        triples_mask_s = (query_triples[:, 0] < len(train_data.entity_labels)) & (query_triples[:, 0] > 0)
+        triples_mask_o = (query_triples[:, 1] < len(train_data.entity_labels)) & (query_triples[:, 1] > 0)
+        triples_mask_r = (query_triples[:, 2] < len(train_data.relation_labels)) & (query_triples[:, 2] > 0)
+        triples_mask = triples_mask_s & triples_mask_r & triples_mask_o
+
+        scores = torch.zeros_like(query_triples[:, 2:], dtype=torch.float)
+        scores[triples_mask] = main_scorer(query_triples[triples_mask].unsqueeze(1), force_all_neighbours=True,
+                                           only_seen_neighbours=not args.eval_unseen_neighbours)
+
+        scores_file_name = re.sub(r'\.csv', '_scores_', args.score_triples) + \
+                           args.file_name_base.replace("/", "_") + args.run_to_load + ".csv"
+        with open(scores_file_name, 'w') as f_scores:
+            for score in scores:
+                print(float(score), file=f_scores)
+
 
 if __name__ == '__main__':
     def process_args():
@@ -1259,8 +1311,6 @@ if __name__ == '__main__':
         group.add_argument("--force-default-args", nargs='*', default=[],
                            help="When loading a model, options listed here will be reset to default values. 'train', "
                                 "'test', 'validate', and 'print_args_only' are always forced.")
-        # group.add_argument("--score-text-from-file", type=str, default=None,
-        #                    help="Use loaded model to score a triple")
         group.add_argument("--print-args-only", action="store_true", help="Print resolved program arguments and exit.")
         group.add_argument("--dont-log-exceptions", action="store_true", 
                            help="don't send uncaught exceptions  to the logger")
@@ -1398,7 +1448,8 @@ if __name__ == '__main__':
         group.add_argument("--openIE-as-pos-samples", action="store_true", 
                            help="Include OpenIE predicates in +ve samples (otherwise use only KB relations).")
         group.add_argument("--loss-by-pair-ranking", action="store_true",
-                           help="Neg samples with same relation but different arg pairs.")
+                           help="Neg samples with same relation but different entity pairs. Default is neg. samples "
+                                "with same entity pairs but different relations.")
 
         # EVALUATION OPTIONS
         group = parser.add_argument_group("Evaluation Options", "Options to control model evaluation. Default "
@@ -1427,6 +1478,22 @@ if __name__ == '__main__':
                                 "eval scores).")
         group.add_argument("--skip-initial-eval", action="store_true",
                            help="Do not perform initial evaluation when starting a training run.")
+        group.add_argument("--score-triples", default=None, type=str,
+                           help="File name of a <file_name>.tsv file of triples (subject-entity, relation, "
+                                "object-entity) containing freebase entity and relation names. Scores for the triples "
+                                "will be output to a text file <file_name>_scores.tsv, higher scores for more likely "
+                                "triples. Any entities/relations not present in training data will result in zero "
+                                "scores.")
+        group.add_argument("--score-triples-entity-by-index", action="store_true",
+                           help="Entries in file provided to --score-triples will be interpreted as integer entity or "
+                                "relation indices as indicated by their keys in e2name.json and p2name.json "
+                                "(reverb) or 'id' entry in entities.json and position in relations.csv (NYT). Out of "
+                                "range indices will result in zero scores.")
+        group.add_argument("--score-triples-relation-by-index", action="store_true",
+                           help="Entries in file provided to --score-triples will be interpreted as integer entity or "
+                                "relation indices as indicated by their keys in e2name.json and p2name.json "
+                                "(reverb) or 'id' entry in entities.json and position in relations.csv (NYT). Out of "
+                                "range indices will result in zero scores.")
 
         return parser.parse_args(), parser
 
