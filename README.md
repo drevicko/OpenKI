@@ -25,9 +25,13 @@ Pre-processed data used in the above two papers is available from the following:
 | NYT              | https://drive.google.com/file/d/1_ayvXQt8dIfrafpAbOHRN8oqdzgdimjM/view?usp=sharing |
 
 Unzip/untar these into the subfolder `data/reverb` and `data/nyt` for the examples below (any location will do &mdash; 
-just change the  `--data-folder` option when invoking `main.py`). To download the google drive link, please see 
-[this SO answer](https://stackoverflow.com/a/50670037/420867). 
-See [Data Preprocessing Scripts](#data-preprocessing-scripts) below for instructions on how to pre-process your own data.
+just change the  `--data-folder` option when invoking `main.py`). 
+
+To download the google drive link in a terminal, 
+[gdown](https://pypi.org/project/gdown/) is a good tool (see 
+[this SO answer](https://stackoverflow.com/a/50670037/420867) for tips on how to use it). 
+
+[comment]: <> (See [Data Preprocessing Scripts]&#40;#data-preprocessing-scripts&#41; below for instructions on how to pre-process your own data.)
 
 # Evaluating a Model
 To run a trained model on evaluation and test data and calculate it's MAP (OpenIE + ClueWeb) resp. AUC-PR (NYT):
@@ -45,6 +49,11 @@ See [Output Files](#output-files) below for further explanation of base names an
 | NYT             | ENE    | `NYT-Ent-D/_51588941__51588947__51588948_` | `BEST_AUC_0.9000850368617055_at_48` | https://drive.google.com/file/d/1YilESMRi6CH2I7w5pG3nAwz7ccwX9XLZ/view?usp=sharing |
 | NYT             | OpenKI | `NYT-Ent-D-OpenKI/_51554475__51554495__51554496_` | `BEST_AUC_0.8909164465583739_at_43` | https://drive.google.com/file/d/1RGqmyfmQD61YFXLHVYYkOYtX6kjO2JkI/view?usp=sharing | 
 
+To download the google drive link in a terminal,
+[gdown](https://pypi.org/project/gdown/) is a good tool (see
+[this SO answer](https://stackoverflow.com/a/50670037/420867) for tips on how to use it).
+
+# Obtaining Scores From Triples
 If you wish to obtain scores for candidate triples from a trained model, you can place the desired triples in a csv
 file with columns (<subject_entity>, <relation>, <object_entity>), where each is given as a freebase id 
 (e.g.: 'm.01nz1q6' for Yoko Ono or the relation 'base.activism.activist.area_of_activism'). 
